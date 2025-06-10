@@ -1,0 +1,66 @@
+import json
+import boto3
+
+# Initialize Bedrock runtime client
+bedrock = boto3.client("bedrock-runtime")
+
+def lambda_handler(event, context):
+    user_query = event.get("query", "")
+    
+    # 1. Use Amazon Bedrock to extract structured filters
+    prompt = f"""Extract the column name to sum (like gross_credit_sales), and any filters like month, agent, platform from this query:
+
+Query: "{user_query}"
+
+Respond in JSON with keys: column, month_new (optional), agent_name (optional), platform (optional)."""
+
+    body = {
+        "prompt": prompt,
+        "max_tokens_to_sample": 300,
+        "temperature": 0.0,
+        "top_p": 1.0
+    }
+
+    response = bedrock.invoke_model(
+        modelId="anthropic.claude-v2",  # or your model ID like "amazon.titan-text-lite-v1"
+        contentType="application/json",
+        accept="application/json",
+        body=json.dumps(body)
+    )
+
+    # Parse the Bedrock response
+    completion = json.loads(response['body'].read())
+    parsed = json.loads(completion['completion'])
+
+    # 2. Build query
+    filters = {
+        k: v for k, v in parsed.items() if k in ['month_new', 'agent_name', 'platform'] and v
+    }
+    col1 = parsed.get("column", "sales")
+
+    query = build_query(col1, filters)
+
+    return {
+        "statusCode": 200,
+        "body": json.dumps({
+            "sql_query": query,
+            "params": filters
+        })
+    }
+
+def build_query(col1, filters):
+    return (
+        f"SELECT SUM(CAST({col1} AS DOUBLE PRECISION)) FROM kb.full"
+        + ((" WHERE " + " AND ".join([f"{k} = %({k})s" for k in filters])) if filters else "")
+    )
+
+
+
+
+
+
+
+
+
+
+
