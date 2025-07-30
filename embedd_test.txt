@@ -1,0 +1,54 @@
+from langchain.embeddings.base import Embeddings
+from transformers import AutoTokenizer, AutoModel
+import torch
+from typing import List
+
+class NomicEmbeddings(Embeddings):
+    def __init__(self, model_name: str = "nomic-ai/nomic-embed-text-v1"):
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+        self.model = AutoModel.from_pretrained(model_name)
+        self.model.eval()  # set to evaluation mode
+
+    def embed_documents(self, texts: List[str]) -> List[List[float]]:
+        return [self._embed(text) for text in texts]
+
+    def embed_query(self, text: str) -> List[float]:
+        return self._embed(text)
+
+    def _embed(self, text: str) -> List[float]:
+        inputs = self.tokenizer(text, return_tensors="pt", truncation=True, padding=True)
+        with torch.no_grad():
+            outputs = self.model(**inputs)
+            # You can choose a pooling strategy – here using CLS token
+            embeddings = outputs.last_hidden_state[:, 0]  # CLS token
+        return embeddings.squeeze().tolist()
+
+
+
+
+
+
+
+from langchain.vectorstores import FAISS
+from langchain.docstore.document import Document
+
+# Sample documents
+documents = [
+    Document(page_content="LangChain is a framework for building LLM-powered apps."),
+    Document(page_content="Nomic provides embedding models and vector search tools."),
+    Document(page_content="Transformers are widely used for NLP tasks.")
+]
+
+# Instantiate embedding class
+embedding = NomicEmbeddings()
+
+# Create FAISS vector store
+vectorstore = FAISS.from_documents(documents, embedding)
+
+# Query the vector store
+query = "What is LangChain used for?"
+results = vectorstore.similarity_search(query, k=2)
+
+# Print results
+for doc in results:
+    print(f"- {doc.page_content}")
