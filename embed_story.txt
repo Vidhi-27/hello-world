@@ -1,0 +1,72 @@
+You're absolutely right — in Agile and Jira best practices, the “Description” should describe what the system will do, not what the user can do. Here's the revised version of your Jira story with a more technical, system-focused description:
+
+
+---
+
+✅ Jira Story: RAG Architecture Enhancement – Sentence_Transformers Integration
+
+
+---
+
+Description
+
+Enhance the Retrieval-Augmented Generation (RAG) system by integrating Sentence Transformers to generate local embeddings. The system will support loading configurable Sentence Transformer models and generate fixed-size vector embeddings for user queries. These embeddings will be stored in a vector database with reliable persistence and retrieval. The frontend will interact with the database to fetch relevant results, ensuring high accuracy and low latency end-to-end.
+
+
+---
+
+Acceptance Criteria
+
+🔧 Model Integration
+
+The system loads the selected Sentence Transformer model without failure.
+
+Supports specifying embedding dimension (if model supports it).
+
+
+🧠 Embedding Generation
+
+Query embeddings are generated accurately using the integrated model.
+
+Embeddings are consistent across identical inputs.
+
+
+🗄 Database Compatibility
+
+Embedding vectors are successfully stored in a compatible vector database.
+
+No data corruption or loss occurs during storage and retrieval.
+
+
+📱 Frontend Access
+
+Frontend can request and retrieve embeddings and related results.
+
+Data is fetched and displayed with minimal delay.
+
+
+🎯 Accuracy
+
+Embedding outputs meet predefined similarity thresholds for a test set.
+
+
+⚡ Latency
+
+The total time from query input to response display is less than 2 seconds.
+
+
+
+---
+
+Let me know if you want subtasks like:
+
+Add config option for model selection
+
+Create wrapper for SentenceTransformer
+
+Implement embedding-to-database pipeline
+
+Frontend API endpoint for fetching results
+
+
+Or if you want this reformatted for a tool like Azure DevOps or GitHub Issues.
