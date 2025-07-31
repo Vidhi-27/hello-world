@@ -1,0 +1,37 @@
+from vosk import Model, KaldiRecognizer
+import soundfile as sf
+import json
+
+# Load the Vosk model
+model = Model("vosk-model-small-en-us-0.15")  # Change path as needed
+
+# Path to your audio file
+audio_path = "your_audio_file.wav"
+
+# Open the audio file
+with sf.SoundFile(audio_path) as audio_file:
+    if audio_file.samplerate != 16000:
+        raise ValueError("Sample rate must be 16000 Hz")
+    if audio_file.channels != 1:
+        raise ValueError("Audio must be mono (1 channel)")
+
+    # Set up recognizer
+    rec = KaldiRecognizer(model, audio_file.samplerate)
+    rec.SetWords(True)
+
+    full_text = ""
+
+    # Read and process audio
+    while True:
+        data = audio_file.buffer_read(4000, dtype='int16')
+        if len(data) == 0:
+            break
+        if rec.AcceptWaveform(data):
+            result = json.loads(rec.Result())
+            full_text += result.get("text", "") + " "
+
+    # Get final bits
+    final_result = json.loads(rec.FinalResult())
+    full_text += final_result.get("text", "")
+
+    print("📝 Transcription:\n", full_text.strip())
