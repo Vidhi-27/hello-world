@@ -1,0 +1,38 @@
+from vosk import Model, KaldiRecognizer
+from pydub import AudioSegment
+import json
+import io
+
+# Load the model
+model = Model("vosk-model-small-en-us-0.15")
+sample_rate = 16000
+
+# Step 1: Load and convert MP3 to WAV-like PCM stream
+audio = AudioSegment.from_mp3("your_audio.mp3")
+audio = audio.set_channels(1)       # Mono
+audio = audio.set_frame_rate(16000) # 16kHz
+
+# Export to in-memory raw data
+pcm_audio = io.BytesIO()
+audio.export(pcm_audio, format="wav")
+pcm_audio.seek(0)
+
+# Step 2: Recognize using Vosk
+import soundfile as sf
+with sf.SoundFile(pcm_audio) as f:
+    rec = KaldiRecognizer(model, f.samplerate)
+    rec.SetWords(True)
+
+    final_text = ""
+    while True:
+        data = f.buffer_read(4000, dtype='int16')
+        if len(data) == 0:
+            break
+        if rec.AcceptWaveform(data):
+            result = json.loads(rec.Result())
+            final_text += result.get("text", "") + " "
+
+    final_result = json.loads(rec.FinalResult())
+    final_text += final_result.get("text", "")
+
+print("📝 Transcription:\n", final_text.strip())
