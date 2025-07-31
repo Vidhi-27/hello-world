@@ -1,0 +1,41 @@
+import queue
+import sounddevice as sd
+from vosk import Model, KaldiRecognizer
+import json
+
+# Load Vosk model (folder must contain model files)
+model = Model("vosk-model-small-en-us-0.15")  # Change path if needed
+sample_rate = 16000
+rec = KaldiRecognizer(model, sample_rate)
+rec.SetWords(True)  # Optional: Get word-level output
+
+# Queue to store audio chunks
+q = queue.Queue()
+
+# Callback to collect microphone audio
+def callback(indata, frames, time, status):
+    if status:
+        print("⚠️", status)
+    q.put(bytes(indata))  # Push raw audio into queue
+
+# Start streaming from mic
+with sd.RawInputStream(samplerate=sample_rate, blocksize=8000, dtype='int16',
+                       channels=1, callback=callback):
+    print("🎙️ Speak now! Press Ctrl+C to stop.\n")
+
+    try:
+        while True:
+            data = q.get()
+            if rec.AcceptWaveform(data):
+                result = json.loads(rec.Result())
+                print("📝", result["text"])
+            # Optional: intermediate result
+            else:
+                partial = json.loads(rec.PartialResult())
+                if partial.get("partial"):
+                    print("...", partial["partial"], end="\r")
+
+    except KeyboardInterrupt:
+        print("\n✅ Stopped recording.")
+        final = json.loads(rec.FinalResult())
+        print("📄 Final Output:", final["text"])
