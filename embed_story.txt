@@ -1,72 +1,101 @@
-You're absolutely right — in Agile and Jira best practices, the “Description” should describe what the system will do, not what the user can do. Here's the revised version of your Jira story with a more technical, system-focused description:
+import fitz  # PyMuPDF library
+import io
+from PIL import Image
+import os
 
+def extract_pdf_data(pdf_path: str) -> list:
+    """
+    Extracts text and images from each page of a PDF file.
 
----
+    The function creates a directory named 'extracted_images' to store the
+    image files.
 
-✅ Jira Story: RAG Architecture Enhancement – Sentence_Transformers Integration
+    Args:
+        pdf_path (str): The file path to the PDF document.
 
+    Returns:
+        list: A list of dictionaries. Each dictionary represents a page and
+              contains its page number, extracted text, and a list of file
+              paths for any images found on that page.
+    """
+    # Check if the PDF file exists before proceeding
+    if not os.path.exists(pdf_path):
+        print(f"Error: File not found at '{pdf_path}'")
+        return []
 
----
+    # Create a directory to store images
+    output_dir = "extracted_images"
+    os.makedirs(output_dir, exist_ok=True)
 
-Description
+    doc = fitz.open(pdf_path)
+    all_pages_data = []
+    
+    print(f"[*] Processing '{pdf_path}' with {len(doc)} pages...")
 
-Enhance the Retrieval-Augmented Generation (RAG) system by integrating Sentence Transformers to generate local embeddings. The system will support loading configurable Sentence Transformer models and generate fixed-size vector embeddings for user queries. These embeddings will be stored in a vector database with reliable persistence and retrieval. The frontend will interact with the database to fetch relevant results, ensuring high accuracy and low latency end-to-end.
+    # Iterate through each page of the PDF
+    for page_num, page in enumerate(doc):
+        # Data structure for the current page
+        page_data = {
+            "page_number": page_num + 1,
+            "text": "",
+            "images": []
+        }
 
+        # 1. Extract all text from the page
+        page_data["text"] = page.get_text("text").strip()
 
----
+        # 2. Get all image objects on the page
+        image_list = page.get_images(full=True)
 
-Acceptance Criteria
+        # 3. Process and save each image
+        for img_index, img in enumerate(image_list):
+            xref = img[0]  # The internal reference number for the image
 
-🔧 Model Integration
+            # Extract the raw image bytes and its extension (e.g., 'png', 'jpeg')
+            base_image = doc.extract_image(xref)
+            image_bytes = base_image["image"]
+            image_ext = base_image["ext"]
 
-The system loads the selected Sentence Transformer model without failure.
+            # Define a unique filename for the image
+            image_filename = f"page{page_num+1}_img{img_index+1}.{image_ext}"
+            image_filepath = os.path.join(output_dir, image_filename)
 
-Supports specifying embedding dimension (if model supports it).
+            # Save the image data to a file
+            try:
+                with open(image_filepath, "wb") as img_file:
+                    img_file.write(image_bytes)
+                page_data["images"].append(image_filepath)
+            except Exception as e:
+                print(f"[!] Warning: Could not save image on page {page_num+1}. Reason: {e}")
 
+        all_pages_data.append(page_data)
 
-🧠 Embedding Generation
+    doc.close()
+    print(f"[*] Extraction complete. Images saved in the '{output_dir}' folder.")
+    return all_pages_data
 
-Query embeddings are generated accurately using the integrated model.
+# --- HOW TO USE THIS SCRIPT ---
+if __name__ == "__main__":
+    # 1. CHANGE THIS to the path of your PDF file.
+    pdf_file_path = "your_document.pdf" 
+    
+    # 2. Run the extraction function.
+    combined_data = extract_pdf_data(pdf_file_path)
 
-Embeddings are consistent across identical inputs.
-
-
-🗄 Database Compatibility
-
-Embedding vectors are successfully stored in a compatible vector database.
-
-No data corruption or loss occurs during storage and retrieval.
-
-
-📱 Frontend Access
-
-Frontend can request and retrieve embeddings and related results.
-
-Data is fetched and displayed with minimal delay.
-
-
-🎯 Accuracy
-
-Embedding outputs meet predefined similarity thresholds for a test set.
-
-
-⚡ Latency
-
-The total time from query input to response display is less than 2 seconds.
-
-
-
----
-
-Let me know if you want subtasks like:
-
-Add config option for model selection
-
-Create wrapper for SentenceTransformer
-
-Implement embedding-to-database pipeline
-
-Frontend API endpoint for fetching results
-
-
-Or if you want this reformatted for a tool like Azure DevOps or GitHub Issues.
+    # 3. Print the combined results.
+    if combined_data:
+        for page_info in combined_data:
+            print("\n" + "="*50)
+            print(f"📄 PAGE: {page_info['page_number']}")
+            print("="*50)
+            
+            print("\n--- EXTRACTED TEXT ---")
+            print(page_info['text'] if page_info['text'] else "No text found.")
+            
+            print("\n--- EXTRACTED IMAGES ---")
+            if page_info['images']:
+                for img_path in page_info['images']:
+                    print(f"  -> Saved image to: {img_path}")
+            else:
+                print("No images found on this page.")
+        print("\n" + "="*50)
