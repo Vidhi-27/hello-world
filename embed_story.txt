@@ -1,3 +1,72 @@
+# travel_planner_agent.py
+from strands import Strand
+from strands.tools import WebSearch
+
+search_tool = WebSearch()
+
+class TravelPlannerAgent(Strand):
+    tools = [search_tool]
+
+    async def on_message(self, msg):
+        destination = msg.content
+        query = f"Plan a 5-day trip to {destination}. Include best hotels, tourist attractions, and local food places."
+        search_results = await self.call_tool("web_search", query)
+        
+        prompt = f"""
+        Based on this search data, create a 5-day travel itinerary for {destination}.
+        Include:
+        - Daily plan (places to visit)
+        - Recommended hotels
+        - Local foods to try
+        - Total estimated cost range
+
+        Data:
+        {search_results}
+        """
+        summary = await self.llm(prompt)
+        await self.send(summary)
+
+
+# Run locally
+if __name__ == "__main__":
+    import asyncio
+    agent = TravelPlannerAgent(model="gpt-4o-mini")
+
+    async def run():
+        response = await agent.run("Jaipur, India")
+        print(response)
+
+    asyncio.run(run())
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 Nice — I’ll walk you through everything about Apptimize Feature Variables in simple words, show how they differ from feature flags, and give a complete, copy-pasteable React example for your file-upload feature. I’ll also explain the dashboard steps (with what each screen does) so you can set this up end-to-end. Let’s go. 🚀
 ________________________________________
 TL;DR (one-line)
@@ -516,5 +585,6 @@ ________________________________________
 ________________________________________
 Would you like me to give you a JSON-like sample structure of the segment you’d configure in Apptimize (so you have a visual reference of how it looks in the dashboard)?
 This will make it super easy for you when you actually configure it.
+
 
 
