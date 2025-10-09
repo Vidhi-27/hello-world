@@ -1,3 +1,162 @@
+#!/usr/bin/env python3
+"""
+Single Strands agent – any-format transcript →
+diving tasks + 1-sentence summaries + schedule + key info.
+LLM extraction is done **directly with boto3 + Amazon Bedrock**.
+Usage:
+    python teams_dive_agent.py  < any_transcript.txt
+"""
+import sys, json, textwrap, datetime, os
+from datetime import timedelta
+from strands import Agent, tool
+from strands_tools import current_time, python_repl
+
+# -------------------------------------------------
+# 1.  Low-level Bedrock client (boto3)
+# -------------------------------------------------
+import boto3
+from botocore.config import Config
+
+BEDROCK_REGION = os.getenv("AWS_DEFAULT_REGION", "us-east-1")
+MODEL_ID = "anthropic.claude-3-sonnet-20240229-v1:0"  # change if desired
+
+_bedrock_rt = boto3.client(
+    "bedrock-runtime",
+    region_name=BEDROCK_REGION,
+    config=Config(retries={"max_attempts": 10, "mode": "standard"})
+)
+
+def bedrock_llm(prompt: str, max_tokens: int = 1500, temperature: float = 0.0) -> str:
+    """
+    Call Bedrock Claude via boto3 invoke_model.
+    Returns the raw assistant text.
+    """
+    # Claude messages format
+    native_request = {
+        "anthropic_version": "bedrock-2023-05-31",
+        "max_tokens": max_tokens,
+        "temperature": temperature,
+        "messages": [{"role": "user", "content": prompt}]
+    }
+    request_body = json.dumps(native_request)
+    response = _bedrock_rt.invoke_model(
+        modelId=MODEL_ID,
+        contentType="application/json",
+        accept="application/json",
+        body=request_body
+    )
+    response_body = json.loads(response["body"].read())
+    return response_body.get("content", [{}])[0].get("text", "")
+
+# -------------------------------------------------
+# 2.  LLM-powered extractor (replaces old stub)
+# -------------------------------------------------
+@tool
+def llm_extract(transcript: str) -> dict:
+    """
+    Use Bedrock LLM to normalise **any** transcript format.
+    """
+    prompt = f"""
+You are an AI project-manager assistant.
+The text below is a raw meeting transcript (format is arbitrary).
+
+RAW TRANSCRIPT:
+{transcript}
+
+INSTRUCTIONS:
+1. Identify every task / to-do item, regardless of how it is worded.
+2. Write a ONE-sentence summary for each task.
+3. Extract:
+   - owners (people assigned or mentioned with @)
+   - decisions (clear agreements)
+   - deadlines (dates or relative times like “next Friday”)
+   - files or links mentioned
+4. Output **only** valid JSON with keys:
+{{
+  "tasks": ["task1", "task2", ...],
+  "summaries": ["summary1", "summary2", ...],
+  "owners": ["owner1", ...],
+  "decisions": ["decision1", ...],
+  "deadlines": ["deadline1", ...],
+  "files": ["file1", ...]
+}}
+"""
+    raw_answer = bedrock_llm(prompt, max_tokens=2000, temperature=0.0)
+    try:
+        return json.loads(raw_answer.strip())
+    except Exception as e:
+        # Fail-safe
+        return {"tasks": [], "summaries": [], "owners": [], "decisions": [], "deadlines": [], "files": []}
+
+# -------------------------------------------------
+# 3.  Scheduler & pretty printer (unchanged)
+# -------------------------------------------------
+@tool
+def schedule_tasks(tasks: list, summaries: list, start_offset_minutes: int = 15, slot_minutes: int = 30) -> list:
+    slots = []
+    now = datetime.datetime.utcnow()
+    for idx, (task, summary) in enumerate(zip(tasks, summaries)):
+        start = now + timedelta(minutes=start_offset_minutes + idx * (slot_minutes + 5))
+        end = start + timedelta(minutes=slot_minutes)
+        slots.append({
+            "task": task,
+            "summary": summary,
+            "start_utc": start.isoformat() + "Z",
+            "end_utc": end.isoformat() + "Z"
+        })
+    return slots
+
+@tool
+def human_report(schedule: list, owners: list, decisions: list, deadlines: list, files: list) -> str:
+    lines = ["\n=== Diving Plan ==="]
+    for slot in schedule:
+        lines.append(f"{slot['start_utc'][11:16]}–{slot['end_utc'][11:16]} UTC | {slot['task']}")
+        lines.append(f"  → {slot['summary']}\n")
+    lines.append("Key Info")
+    lines.append(f"  Owners : {', '.join(owners) or '—'}")
+    lines.append(f"  Decisions : {', '.join(decisions) or '—'}")
+    lines.append(f"  Deadlines : {', '.join(deadlines) or '—'}")
+    lines.append(f"  Files/Links : {', '.join(files) or '—'}")
+    return "\n".join(lines)
+
+# -------------------------------------------------
+# 4.  Build the agent
+# -------------------------------------------------
+agent = Agent(
+    tools=[llm_extract, schedule_tasks, human_report, current_time, python_repl],
+    system_prompt=textwrap.dedent("""
+        You are a project-manager AI.
+        Workflow:
+        1. Call llm_extract to normalise the transcript (any format).
+        2. Call schedule_tasks to build staggered calendar slots (start +15 min, 30 min each).
+        3. Call human_report for readable summary.
+        4. Finally print the raw JSON.
+        Do not skip any step.
+    """)
+)
+
+# -------------------------------------------------
+# 5.  CLI
+# -------------------------------------------------
+if __name__ == "__main__":
+    raw = sys.stdin.read().strip()
+    if not raw:
+        print("Pipe in any transcript text.")
+        sys.exit(1)
+    prompt = f"Transcript below (format is arbitrary).\n---\n{raw}\n---"
+    print("\nThinking...\n")
+    print(agent(prompt))
+
+
+
+
+
+
+
+
+
+
+
 from vosk import Model, KaldiRecognizer
 from pydub import AudioSegment
 import json
@@ -36,3 +195,4 @@ with sf.SoundFile(pcm_audio) as f:
     final_text += final_result.get("text", "")
 
 print("📝 Transcription:\n", final_text.strip())
+
