@@ -1,3 +1,289 @@
+Perfect, Vidhi 🌟
+Let’s go **end-to-end** — we’ll build a **React UI that looks like n8n**, where you can drag “agent nodes” and connect them visually (no backend logic, just front-end flow).
+
+We’ll use:
+
+* ⚛️ **React + Vite** (for fast dev)
+* 🎨 **Tailwind CSS** (for styling)
+* 🔄 **reactflow** (for the node graph editor)
+
+---
+
+## 🧱 Step 1: Create Your React + Vite Project
+
+```bash
+npm create vite@latest agent-flow-ui --template react
+cd agent-flow-ui
+npm install
+```
+
+---
+
+## 🎨 Step 2: Setup Tailwind CSS
+
+```bash
+npm install -D tailwindcss postcss autoprefixer
+npx tailwindcss init -p
+```
+
+In `tailwind.config.js`, replace with:
+
+```js
+/** @type {import('tailwindcss').Config} */
+export default {
+  content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
+  theme: {
+    extend: {},
+  },
+  plugins: [],
+};
+```
+
+In `src/index.css`, replace all content with:
+
+```css
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+```
+
+---
+
+## 🔌 Step 3: Install React Flow
+
+```bash
+npm install reactflow
+```
+
+---
+
+## 🧩 Step 4: Create the Agent Flow Component
+
+📁 `src/components/AgentFlowUI.jsx`
+
+```jsx
+import React, { useCallback, useState } from "react";
+import ReactFlow, {
+  addEdge,
+  MiniMap,
+  Controls,
+  Background,
+  useNodesState,
+  useEdgesState,
+} from "reactflow";
+import "reactflow/dist/style.css";
+
+const initialNodes = [
+  {
+    id: "1",
+    type: "input",
+    data: { label: "User Query" },
+    position: { x: 50, y: 100 },
+  },
+  {
+    id: "2",
+    data: { label: "Task Classifier Agent" },
+    position: { x: 300, y: 100 },
+  },
+  {
+    id: "3",
+    data: { label: "SQL Query Agent" },
+    position: { x: 550, y: 40 },
+  },
+  {
+    id: "4",
+    data: { label: "HR Policy Agent" },
+    position: { x: 550, y: 160 },
+  },
+  {
+    id: "5",
+    type: "output",
+    data: { label: "Response to User" },
+    position: { x: 800, y: 100 },
+  },
+];
+
+const initialEdges = [
+  { id: "e1-2", source: "1", target: "2", animated: true, label: "query" },
+  { id: "e2-3", source: "2", target: "3", label: "data" },
+  { id: "e2-4", source: "2", target: "4", label: "hr" },
+  { id: "e3-5", source: "3", target: "5" },
+  { id: "e4-5", source: "4", target: "5" },
+];
+
+export default function AgentFlowUI() {
+  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+
+  const onConnect = useCallback(
+    (params) => setEdges((eds) => addEdge({ ...params, animated: true }, eds)),
+    []
+  );
+
+  return (
+    <div className="w-full h-[85vh] bg-gray-50 rounded-xl shadow-md border border-gray-200">
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        onConnect={onConnect}
+        fitView
+        snapToGrid={true}
+        snapGrid={[15, 15]}
+      >
+        <MiniMap nodeColor={(n) => (n.type === "input" ? "blue" : "gray")} />
+        <Controls />
+        <Background color="#aaa" gap={20} />
+      </ReactFlow>
+    </div>
+  );
+}
+```
+
+✅ This creates draggable agent nodes + connectors + a minimap.
+
+---
+
+## 📄 Step 5: Create `App.jsx`
+
+📁 `src/App.jsx`
+
+```jsx
+import AgentFlowUI from "./components/AgentFlowUI";
+
+export default function App() {
+  return (
+    <div className="min-h-screen bg-white flex flex-col items-center py-10">
+      <h1 className="text-3xl font-bold text-gray-800 mb-4">
+        🧠 Agent Store Visual Flow UI
+      </h1>
+      <p className="text-gray-500 mb-8">
+        Drag, connect, and visualize agent workflows (n8n-style UI)
+      </p>
+      <div className="w-[90%]">
+        <AgentFlowUI />
+      </div>
+    </div>
+  );
+}
+```
+
+---
+
+## 🏃 Step 6: Run the App
+
+```bash
+npm run dev
+```
+
+Visit 👉 **[http://localhost:5173](http://localhost:5173)**
+
+You’ll see:
+
+* A clean UI with draggable “Agent” nodes
+* Connectors you can drag between nodes
+* MiniMap, zoom, and pan features
+* n8n-style workspace look 🎨
+
+---
+
+## ⚡ Step 7: Add Optional Enhancements (If You Want)
+
+### 🧩 1. Custom Node Styles
+
+You can give each agent a different color or icon.
+
+Example:
+
+```jsx
+const initialNodes = [
+  {
+    id: "2",
+    data: { label: <div className="text-blue-600 font-semibold">Task Classifier Agent</div> },
+    position: { x: 300, y: 100 },
+    style: { background: "#E0F2FE", border: "1px solid #38BDF8", borderRadius: "10px", padding: 10 },
+  },
+];
+```
+
+---
+
+### 🧠 2. Add “Add Agent” Button
+
+You can dynamically add nodes:
+
+```jsx
+<button
+  onClick={() =>
+    setNodes((nds) => [
+      ...nds,
+      {
+        id: (nds.length + 1).toString(),
+        data: { label: "New Agent" },
+        position: { x: Math.random() * 400, y: Math.random() * 400 },
+      },
+    ])
+  }
+  className="px-4 py-2 bg-blue-500 text-white rounded-lg mb-4"
+>
+  ➕ Add Agent Node
+</button>
+```
+
+---
+
+### 🧩 3. Save or Load Layout
+
+You can store node positions and edges as JSON:
+
+```js
+localStorage.setItem("flow", JSON.stringify({ nodes, edges }));
+```
+
+Then load it later:
+
+```js
+const savedFlow = JSON.parse(localStorage.getItem("flow"));
+setNodes(savedFlow.nodes);
+setEdges(savedFlow.edges);
+```
+
+---
+
+## 🎯 Result: You’ve Built
+
+✅ n8n-style **visual flow UI**
+✅ Fully **interactive** (drag, connect, zoom, minimap)
+✅ **React + Tailwind** clean design
+✅ Ready for **Agent Store visualization**
+
+---
+
+Would you like me to extend this into a **“Custom Agent Node UI”** version — where each node shows an **icon, title, and short description** (like "Code Reviewer Agent – reviews PRs for quality") in a card-style box?
+That will make your Agent Store flow diagram look professional, like n8n or LangGraph Studio.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 from langchain.embeddings.base import Embeddings
 from transformers import AutoTokenizer, AutoModel
 import torch
@@ -52,3 +338,4 @@ results = vectorstore.similarity_search(query, k=2)
 # Print results
 for doc in results:
     print(f"- {doc.page_content}")
+
