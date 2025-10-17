@@ -1,3 +1,23 @@
+template = """
+You are an expert HR assistant.
+Create a professional job description for the following role:
+
+Role: {role}
+Experience: {experience} years
+Skills: {skills}
+Company Type: {company_type}
+
+Include sections:
+1. Job Title
+2. Job Summary
+3. Key Responsibilities
+4. Required Skills
+5. Preferred Skills
+6. Qualifications
+7. About Company (brief)
+"""
+
+
 from vosk import Model, KaldiRecognizer
 import soundfile as sf
 import json
@@ -35,3 +55,4 @@ with sf.SoundFile(audio_path) as audio_file:
     full_text += final_result.get("text", "")
 
     print("📝 Transcription:\n", full_text.strip())
+
